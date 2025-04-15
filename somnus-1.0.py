@@ -8,7 +8,7 @@ from google import genai  # Google GenAI 模組
 # 載入 .env 檔案
 load_dotenv()
 DISCORD_TOKEN = os.getenv("TOKEN")
-GEMINI_API_KEY = os.getenv("Gemini_Api_Key")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # 用於儲存每個頻道的對話歷史，key = 頻道 ID, value = 對話訊息列表
 conversation_histories = {}
