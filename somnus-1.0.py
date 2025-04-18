@@ -4,7 +4,43 @@ import asyncio
 from discord import app_commands
 from dotenv import load_dotenv
 from google import genai  # Google GenAI 模組
+from google.genai import types
+import re
+# Big thanks to Shewi
+def split_into_chunks(text: str, max_length: int = 1024) -> list:
+    """Convert a string into a list of chunks with an adjustable size."""
+    tokens = []
+    markdown_pattern = r"(\[[^\]]*\]\([^)]*\))"
+    last_end = 0
 
+    for match in re.finditer(markdown_pattern, text, flags=re.DOTALL):
+        if match.start() > last_end:
+            tokens.extend(re.findall(r"\S+|\s+", text[last_end : match.start()]))
+        tokens.append(match.group(0))
+        last_end = match.end()
+
+    if last_end < len(text):
+        tokens.extend(re.findall(r"\S+|\s+", text[last_end:]))
+
+    chunks = []
+    current_chunk = ""
+
+    for token in tokens:
+        if len(current_chunk) + len(token) > max_length:
+            if current_chunk:
+                chunks.append(current_chunk)
+                current_chunk = ""
+            if len(token) > max_length:
+                for i in range(0, len(token), max_length):
+                    part = token[i : i + max_length]
+                    chunks.append(part)
+                continue
+        current_chunk += token
+
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    return chunks if chunks else [text]
 # 載入 .env 檔案
 load_dotenv()
 DISCORD_TOKEN = os.getenv("TOKEN")
@@ -22,6 +58,14 @@ class MyClient(discord.Client):
 
     async def on_ready(self):
         print(f"Bot 已登入：{self.user}")
+        # 在這裡設定機器人的狀態與 Activity
+        await self.change_presence(
+            status=discord.Status.online,
+            activity=discord.Activity(
+                type=discord.ActivityType.listening,
+                name="/gemini for asking!"
+            )
+        )
         # 同步 Slash Commands 到 Discord 伺服器（第一次啟動）
         if not self.synced:
             await self.tree.sync()
@@ -50,6 +94,7 @@ async def help_command(interaction: discord.Interaction):
 #
 # ====== 2) /gemini 指令 ======
 #
+MAX_PROMPT_LENGTH=2000
 @client.tree.command(name="gemini", description="與 Gemini 進行對話，或輸入 'reset' 以重置對話")
 @app_commands.describe(prompt="想詢問的內容，輸入 'reset' 可重置對話")
 async def gemini_command(interaction: discord.Interaction, prompt: str):
@@ -78,6 +123,10 @@ async def gemini_command(interaction: discord.Interaction, prompt: str):
     # 拼接上下文，末尾加上提示字串
     conversation_prompt = "\n".join(history) + "\nAssistant:"
 
+    # 若整個 prompt 超過上限，就一邊砍最舊的 history，一邊重組 prompt
+    while len(conversation_prompt) > MAX_PROMPT_LENGTH and len(history) > 1:
+        history.pop(0)
+        conversation_prompt = "\n".join(history) + "\nAssistant:"
     try:
         # 建立 Google GenAI client
         genai_client = genai.Client(api_key=GEMINI_API_KEY)
@@ -85,9 +134,12 @@ async def gemini_command(interaction: discord.Interaction, prompt: str):
         response = await asyncio.to_thread(
             genai_client.models.generate_content,
             model="gemini-2.0-flash",
-            contents=conversation_prompt
+            contents=conversation_prompt,
         )
         generated_text = response.text.strip()
+        chunks = split_into_chunks(generated_text, max_length=2000)
+        for chunk in chunks:
+            await interaction.followup.send(chunk)
 
         # 將模型回覆加入對話歷史，並保持歷史不超過15則
         history.append(f"Assistant: {generated_text}")
@@ -95,8 +147,6 @@ async def gemini_command(interaction: discord.Interaction, prompt: str):
             history.pop(0)
         conversation_histories[channel_id] = history
 
-        # 回覆結果給使用者
-        await interaction.followup.send(generated_text)
     except Exception as e:
         await interaction.followup.send(f"呼叫 Gemini API 時發生錯誤：{e}")
 
@@ -105,8 +155,8 @@ async def gemini_command(interaction: discord.Interaction, prompt: str):
 #
 #@client.event
 #async def on_message(message):
-    # **注意：這裡我們不做「if message.author.bot: return」的判斷，
-    # 讓來自機器人（bot）的訊息也能被處理，從而達到 Bot 與 Bot 之間溝通的效果。**
+    # 注意：這裡不做「if message.author.bot: return」的判斷，
+    # 讓來自機器人（bot）的訊息也能被處理，從而達到 Bot 與 Bot 之間溝通的效果。
     #print(f"收到來自 {message.author} 的訊息：{message.content}")
     # 若需要讓 Bot 對某些訊息做自動回應，可在此處加入相應邏輯
     # 例如：若收到特定關鍵字，可呼叫 /gemini 指令邏輯或其他處理（避免無限迴圈）。
