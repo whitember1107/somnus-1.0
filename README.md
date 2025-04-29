@@ -1,7 +1,7 @@
 # Somnus-1.0
 
 A Discord bot that integrates with Google GenAI (Gemini) to provide AI-powered chat within Discord channels. It supports slash commands for interacting with the Gemini model, manages per-channel conversation history, and splits long responses into manageable chunks.
-![]("/header.jpeg")
+![image]("/header.jpeg")
 
 ## Features
 
