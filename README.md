@@ -5,7 +5,7 @@ A Discord bot that integrates with Google GenAI (Gemini) to provide AI-powered c
     style="display: block; 
            margin-left: auto;
            margin-right: auto;"
-    src="assets/header.jpeg#" 
+    src="assets/header.jpeg" 
     alt="logo">
 </img>
 ## Features
