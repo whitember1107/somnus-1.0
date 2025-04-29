@@ -22,8 +22,8 @@ A Discord bot that integrates with Google GenAI (Gemini) to provide AI-powered c
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-repo/discord-gemini-bot.git
-   cd discord-gemini-bot
+   git clone https://github.com/whitember1107/somnus-1.0.git
+   cd somnus-1.0
    ```
 2. Install dependencies:
    ```bash
@@ -39,7 +39,7 @@ A Discord bot that integrates with Google GenAI (Gemini) to provide AI-powered c
 
 1. Run the bot:
    ```bash
-   python bot.py
+   somnus-1.0.py
    ```
 2. In Discord, use `/help` to view available commands.
 3. Use `/gemini <message>` to chat with the Gemini model.
